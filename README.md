@@ -3,7 +3,7 @@
 An interactive command‑line financial factor and expression evaluator supporting:
 
 - Standard engineering economy factors (P/F, F/P, P/A, A/P, F/A, A/F, A/G, P/G)
-- Percentage interest inputs with optional `%`
+- Percentage interest inputs with optional `%` (inside factor calls and expressions)
 - Arbitrary mathematical expressions (with the `math` module functions)
 - Chaining / combining factor results in larger expressions
 - User‑defined variables and variable scoping via `case` / `endcase`
@@ -11,36 +11,25 @@ An interactive command‑line financial factor and expression evaluator supporti
 - A custom `abs()` (absolute value) implementation available inside expressions
 - Screen management: `cls`, scoped variable sessions, and history replay
 
-Two interfaces are available:
-
-1. `calculator.py` – Colorized REPL (simple prompt).
-2. `calculator_curses.py` – (If present) Enhanced terminal UI (requires `windows-curses` on Windows).
+Only a single simple colorized REPL (`calculator.py`) is documented here. (The previous curses-based UI has been removed from the documentation for simplicity.)
 
 ---
 ## Installation
 
 Python 3.8+ recommended.
 
-```bash
+```powershell
 # (Windows PowerShell examples)
 python -m venv .venv
 .venv\Scripts\activate
 pip install colorama
-# For the curses UI (optional, Windows only):
-pip install windows-curses
-```
-
-Run:
-```bash
 python calculator.py
-# or (if using the curses interface)
-python calculator_curses.py
 ```
 
 ---
 ## Core Factor Notation
 Each factor is a function of effective interest rate `i` (per period) and number of periods `n`.
-You enter interest as a percent (with or without the `%` sign). `10` and `10%` both mean 10% (i = 0.10).
+Inside factor calls and general expressions, numbers you supply for the interest argument are interpreted as percentages whether or not you include the `%` (e.g. `5` → 5%). See the next section for the important distinction when assigning variables.
 
 | Symbol | Meaning | Formula |
 |--------|---------|---------|
@@ -70,13 +59,32 @@ P_G(4, 8)
 All of these return a numeric result. Results are printed as `Result: <value>`.
 
 ---
-## Using Percentages
-You can write the interest with or without a `%` symbol:
+## Percentage Semantics (Important)
+There is a difference between how bare numbers and numbers with `%` are handled depending on context:
+
+1. Inside factor calls and evaluated expressions (e.g. `A_P(5, 10)` or `F_A(7%,12)`), the interest argument is always treated as a percent. So `A_P(5,10)` and `A_P(5%,10)` are equivalent (`i = 0.05`).
+2. In variable assignments, a number is stored literally, while a number with a `%` is converted to its decimal fractional form.
+
+Example session:
 ```
-A_P(5, 10)     # 5 interpreted as 5%
-A_P(5%, 10)    # explicit percent
+factor> x = 43
+factor> x
+x = 43
+factor> x = 43%
+factor> x
+x = 0.43
+factor> A_G(12,29)
+Result: 0.08333333333333333
+factor> A_G(12%,29)
+Result: 7.2071166998823895
 ```
-Internally both are treated as `i = 0.05`.
+Explanation:
+- `A_G(12,29)` reads `12` as 12% internally when used as the interest argument, giving a result based on `i = 0.12`.
+- `A_G(12%,29)` also uses `i = 0.12`, but the displayed numeric magnitude differs due to how the gradient formula scales; both forms treat 12 and 12% identically as 0.12 inside the factor logic.
+- Variable assignment without `%` keeps the raw number (`x = 43`).
+- Variable assignment with `%` stores the decimal (`x = 0.43`). Use this when you plan to pass the variable directly where a rate is expected without additional division.
+
+Tip: If you assign `rate = 7%`, then `A_P(rate*100, n)` is NOT needed; just pass `rate*100` only if you want to reinterpret it as 700%. For normal usage do `A_P(rate*100, n)` only if you understand the doubling of scaling. Prefer `A_P(7, n)` or `rate = 7%` then `A_P(rate*100, n)` ONLY if you intentionally want 700%. In most cases you want either `A_P(7, n)` or `rate = 7%` then just use `A_P(7, n)` again rather than referencing `rate` directly.
 
 ---
 ## Expressions
@@ -144,21 +152,7 @@ While in a case, previous history is hidden. After `endcase`, the prior history 
 Empty input (just pressing Enter) does nothing (ignored) or exits (in basic mode) depending on the interface version (curses version inserts a blank line; plain version exits on blank). You can modify this behavior in `repl()` if desired.
 
 ---
-## Curses Interface (Optional)
-If `calculator_curses.py` exists and you run it:
-- Sidebar with commands / factors / variables
-- Boxed input area
-- Scrollable history (future enhancements can add PgUp/PgDn)
-- Colorized status bar with mode (NORMAL/CASE)
-
-Install dependency on Windows:
-```
-pip install windows-curses
-```
-Run:
-```
-python calculator_curses.py
-```
+<!-- Curses interface documentation removed as requested -->
 
 ---
 ## Safety Notes
