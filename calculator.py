@@ -213,6 +213,8 @@ def repl():
                     'math': math,
                     '__builtins__': {},
                 })
+                # Provide custom abs (remove negative sign) since builtins are stripped
+                safe_env['abs'] = lambda x: -x if x < 0 else x
                 for k in dir(math):
                     if not k.startswith('_'):
                         safe_env[k] = getattr(math, k)
@@ -245,6 +247,8 @@ def repl():
                 'math': math,
                 '__builtins__': {},
             })
+            # Provide custom abs function (remove negative sign)
+            safe_env['abs'] = lambda x: -x if x < 0 else x
             for k in dir(math):
                 if not k.startswith('_'):
                     safe_env[k] = getattr(math, k)
